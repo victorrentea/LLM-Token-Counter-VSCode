@@ -1,9 +1,9 @@
 {
   "name": "gpt-token-counter-live",
-  "displayName": "Live LLM Token Counter",
+  "displayName": "Live LLM Token Counter (Victor fork)",
   "description": "Live token counts and token-boundary highlighting for GPT, Claude, Gemini, and HuggingFace tokenizers.",
   "version": "1.5.2",
-  "publisher": "bedirt",
+  "publisher": "victorrentea",
   "author": {
     "name": "BedirT"
   },
@@ -15,6 +15,7 @@
     "onCommand:gpt-token-counter-live.countTokens",
     "onCommand:gpt-token-counter-live.changeModel",
     "onCommand:gpt-token-counter-live.toggleHighlight",
+    "onCommand:gpt-token-counter-live.toggleHighlightAndChangeModel",
     "onCommand:gpt-token-counter-live.configureHighlights",
     "onCommand:gpt-token-counter-live.refreshHuggingfaceCache",
     "onLanguage:plaintext",
@@ -74,6 +75,10 @@
       {
         "command": "gpt-token-counter-live.toggleHighlight",
         "title": "Toggle Token Highlighting"
+      },
+      {
+        "command": "gpt-token-counter-live.toggleHighlightAndChangeModel",
+        "title": "Toggle Token Highlighting and Change Model Family"
       },
       {
         "command": "gpt-token-counter-live.configureHighlights",
