@@ -652,17 +652,24 @@ function activate(context) {
     loadEnabledFilePatterns();
 
     const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    statusBar.command = 'gpt-token-counter-live.changeModel';
+    // Single status bar entry: the palette state icon sits in front of the count, and one
+    // click both flips highlighting and opens the model family picker. A second item can't
+    // be kept adjacent because the built-in editor items occupy the priorities around 100.
+    statusBar.command = 'gpt-token-counter-live.toggleHighlightAndChangeModel';
     statusBar.name = 'LLM Token Counter';
-
-    const highlightStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
-    highlightStatusBar.command = 'gpt-token-counter-live.toggleHighlight';
-    highlightStatusBar.name = 'Token Highlight Toggle';
-    highlightStatusBar.accessibilityInformation = {
-        label: 'Toggle token highlighting',
+    statusBar.accessibilityInformation = {
+        label: 'Toggle token highlighting and select a model family',
         role: 'button'
     };
-    highlightStatusBar.text = '$(symbol-color)';
+
+    // Rendered as `<palette icon> <template output>`; both halves are refreshed
+    // independently, so they are kept here and recomposed by renderStatusBar().
+    let highlightIcon = '$(symbol-color)';
+    let counterText = '';
+
+    function renderStatusBar() {
+        statusBar.text = `${highlightIcon} ${counterText}`.trim();
+    }
 
     let tokenDecorations = createTokenDecorationTypes();
 
@@ -675,7 +682,6 @@ function activate(context) {
 
     context.subscriptions.push(
         statusBar,
-        highlightStatusBar,
         {
             dispose: () => {
                 if (tokenDecorations) {
@@ -826,58 +832,35 @@ function activate(context) {
         editor.setDecorations(tokenDecorations.odd, oddRanges);
     }
 
+    // Highlight state is conveyed by the icon in front of the count rather than by a
+    // second status bar entry, so this only refreshes the icon/tooltip half of the item.
     function updateHighlightStatusBar() {
-        const activeEditor = vscode.window.activeTextEditor;
-        if (!activeEditor || !isHighlightableEditor(activeEditor) || !matchesEnabledFilePatterns(activeEditor)) {
-            highlightStatusBar.hide();
-            return;
-        }
-
-        const activeForeground = new vscode.ThemeColor('statusBarItem.activeForeground');
-        const activeBackground = new vscode.ThemeColor('statusBarItem.activeBackground');
-        const inactiveForeground = new vscode.ThemeColor('statusBarItem.inactiveForeground');
-        const inactiveBackground = new vscode.ThemeColor('statusBarItem.inactiveBackground');
-        const defaultForeground = new vscode.ThemeColor('statusBarItem.foreground');
-        const defaultBackground = new vscode.ThemeColor('statusBarItem.background');
-        const unavailableForeground = new vscode.ThemeColor('statusBarItem.errorForeground');
-        const unavailableBackground = new vscode.ThemeColor('statusBarItem.errorBackground');
-
-        const applyAppearance = (text, tooltip, foreground, background, fallbackForeground, fallbackBackground) => {
-            highlightStatusBar.text = text;
-            highlightStatusBar.tooltip = tooltip;
-            highlightStatusBar.color = foreground || fallbackForeground;
-            highlightStatusBar.backgroundColor = background || fallbackBackground;
+        const applyAppearance = (icon, tooltip, foreground) => {
+            highlightIcon = icon;
+            statusBar.tooltip = tooltip;
+            statusBar.color = foreground;
+            renderStatusBar();
         };
 
         if (!tokenizerState.supportsHighlight) {
             applyAppearance(
                 '$(circle-slash)',
-                'Token highlighting is unavailable for this model family.',
-                unavailableForeground,
-                unavailableBackground,
-                defaultForeground,
-                defaultBackground
+                'Token highlighting is unavailable for this model family. Click to pick another one.',
+                new vscode.ThemeColor('statusBarItem.errorForeground')
             );
         } else if (highlightEnabled) {
             applyAppearance(
                 '$(paintcan)',
-                'Click to disable token highlighting.',
-                activeForeground || new vscode.ThemeColor('statusBarItem.prominentForeground'),
-                activeBackground || new vscode.ThemeColor('statusBarItem.prominentBackground'),
-                defaultForeground,
-                defaultBackground
+                'Token highlighting is on. Click to turn it off and pick a model family.',
+                new vscode.ThemeColor('statusBarItem.prominentForeground')
             );
         } else {
             applyAppearance(
                 '$(symbol-color)',
-                'Click to enable token highlighting.',
-                inactiveForeground,
-                inactiveBackground,
-                defaultForeground,
+                'Token highlighting is off. Click to turn it on and pick a model family.',
                 undefined
             );
         }
-        highlightStatusBar.show();
     }
 
     function resetTokenizerState() {
@@ -1286,14 +1269,12 @@ function activate(context) {
         if (!isHighlightableEditor(editor)) {
             statusBar.hide();
             clearTokenHighlights(editor);
-            highlightStatusBar.hide();
             return;
         }
 
         if (!matchesEnabledFilePatterns(editor)) {
             statusBar.hide();
             clearTokenHighlights(editor);
-            highlightStatusBar.hide();
             return;
         }
 
@@ -1304,11 +1285,12 @@ function activate(context) {
 
         const { tokenCount, tokenizationResult } = computeTokenization(text);
 
-        statusBar.text = applyStatusBarTemplate(statusBarTemplate, {
+        counterText = applyStatusBarTemplate(statusBarTemplate, {
             count: tokenCount,
             family: currentFamilyName,
             provider: currentProvider
         });
+        renderStatusBar();
         statusBar.show();
 
         if (highlightEnabled) {
@@ -1450,11 +1432,14 @@ function activate(context) {
 
     context.subscriptions.push(disposable);
 
-    const toggleHighlight = vscode.commands.registerCommand('gpt-token-counter-live.toggleHighlight', () => {
-        const nextState = !highlightEnabled;
-
+    // `silent` suppresses the notifications: when the toggle rides along with the status
+    // bar click the icon already reports the new state, and a toast on every click of the
+    // model picker would be pure noise.
+    function setHighlightEnabled(nextState, { silent = false } = {}) {
         if (nextState && !tokenizerState.supportsHighlight) {
-            if (currentProvider === 'huggingface' && tokenizerState.hfStatus === 'loading') {
+            if (silent) {
+                // The $(circle-slash) icon already says highlighting is unavailable.
+            } else if (currentProvider === 'huggingface' && tokenizerState.hfStatus === 'loading') {
                 vscode.window.showInformationMessage('HuggingFace tokenizer is still loading. Try again once the download finishes.');
             } else if (currentProvider === 'huggingface') {
                 vscode.window.showInformationMessage('Token highlighting is unavailable until a HuggingFace tokenizer is loaded successfully.');
@@ -1464,10 +1449,14 @@ function activate(context) {
             highlightEnabled = false;
         } else if (nextState) {
             highlightEnabled = true;
-            vscode.window.showInformationMessage('Token highlighting enabled.');
+            if (!silent) {
+                vscode.window.showInformationMessage('Token highlighting enabled.');
+            }
         } else {
             highlightEnabled = false;
-            vscode.window.showInformationMessage('Token highlighting disabled.');
+            if (!silent) {
+                vscode.window.showInformationMessage('Token highlighting disabled.');
+            }
         }
 
         if (!highlightEnabled) {
@@ -1476,9 +1465,21 @@ function activate(context) {
 
         updateHighlightStatusBar();
         scheduleUpdateTokenCount();
+    }
+
+    const toggleHighlight = vscode.commands.registerCommand('gpt-token-counter-live.toggleHighlight', () => {
+        setHighlightEnabled(!highlightEnabled);
     });
 
     context.subscriptions.push(toggleHighlight);
+
+    // What the status bar item runs: flip the highlighting, then open the model picker.
+    const toggleHighlightAndChangeModel = vscode.commands.registerCommand('gpt-token-counter-live.toggleHighlightAndChangeModel', async () => {
+        setHighlightEnabled(!highlightEnabled, { silent: true });
+        await vscode.commands.executeCommand('gpt-token-counter-live.changeModel');
+    });
+
+    context.subscriptions.push(toggleHighlightAndChangeModel);
 
     // Manual cache-bust for the HuggingFace remote tokenizer. Addresses the fact that
     // we fetch `resolve/main` (mutable) and cache indefinitely, so an upstream tokenizer
