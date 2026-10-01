@@ -2,6 +2,11 @@
 
 All notable changes to the "gpt-token-counter" extension will be documented in this file.
 
+## [1.5.3]
+
+### Changed
+- Clicking the status bar item only toggles token highlighting; it no longer opens the model family picker. Pick the family with `Change Model Family` or `defaultModelFamily`. When the active family can't highlight, the click still opens the picker.
+
 ## [1.5.2]
 
 ### Changed

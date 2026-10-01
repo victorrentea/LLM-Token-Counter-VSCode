@@ -653,12 +653,14 @@ function activate(context) {
 
     const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     // Single status bar entry: the palette state icon sits in front of the count, and one
-    // click both flips highlighting and opens the model family picker. A second item can't
-    // be kept adjacent because the built-in editor items occupy the priorities around 100.
-    statusBar.command = 'gpt-token-counter-live.toggleHighlightAndChangeModel';
+    // click flips highlighting — nothing else. The model family is picked once, through
+    // `defaultModelFamily` or the `Change Model Family` command; a picker on every click
+    // was in the way of the thing the click is for. A second item can't be kept adjacent
+    // because the built-in editor items occupy the priorities around 100.
+    statusBar.command = 'gpt-token-counter-live.toggleHighlight';
     statusBar.name = 'LLM Token Counter';
     statusBar.accessibilityInformation = {
-        label: 'Toggle token highlighting and select a model family',
+        label: 'Toggle token highlighting',
         role: 'button'
     };
 
@@ -835,9 +837,10 @@ function activate(context) {
     // Highlight state is conveyed by the icon in front of the count rather than by a
     // second status bar entry, so this only refreshes the icon/tooltip half of the item.
     function updateHighlightStatusBar() {
-        const applyAppearance = (icon, tooltip, foreground) => {
+        const applyAppearance = (icon, tooltip, foreground, command = 'gpt-token-counter-live.toggleHighlight') => {
             highlightIcon = icon;
             statusBar.tooltip = tooltip;
+            statusBar.command = command;
             statusBar.color = foreground;
             renderStatusBar();
         };
@@ -846,18 +849,20 @@ function activate(context) {
             applyAppearance(
                 '$(circle-slash)',
                 'Token highlighting is unavailable for this model family. Click to pick another one.',
-                new vscode.ThemeColor('statusBarItem.errorForeground')
+                new vscode.ThemeColor('statusBarItem.errorForeground'),
+                // Nothing to toggle here, so the click keeps its old job: get out of this family.
+                'gpt-token-counter-live.changeModel'
             );
         } else if (highlightEnabled) {
             applyAppearance(
                 '$(paintcan)',
-                'Token highlighting is on. Click to turn it off and pick a model family.',
+                'Token highlighting is on. Click to turn it off.',
                 new vscode.ThemeColor('statusBarItem.prominentForeground')
             );
         } else {
             applyAppearance(
                 '$(symbol-color)',
-                'Token highlighting is off. Click to turn it on and pick a model family.',
+                'Token highlighting is off. Click to turn it on.',
                 undefined
             );
         }

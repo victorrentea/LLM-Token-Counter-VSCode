@@ -26,7 +26,7 @@ Tokenizer support is provided by [tiktoken](https://www.npmjs.com/package/tiktok
 Live token counting for the current selection or entire document, displayed directly in the status bar. Counts update automatically as you type or change your selection.
 
 ### Multi-Model Family Support
-Click the status bar to switch between model families: GPT (OpenAI), Claude (Anthropic), Gemini (Google AI), or HuggingFace.
+Pick the model family with `Change Model Family` (or the `defaultModelFamily` setting): GPT (OpenAI), Claude (Anthropic), Gemini (Google AI), or HuggingFace.
 
 <div align="center">
     <img src="images/model_picker.gif" alt="Model family selection" width="800">
@@ -84,9 +84,9 @@ Personalize how token information appears in your status bar using template plac
 
 This extension provides the following commands (accessible via Command Palette):
 
-- **`Change Model Family`**: Switch between GPT (OpenAI), Claude (Anthropic), and Gemini (Google AI) tokenizers. Also accessible by clicking the token count in the status bar.
+- **`Change Model Family`**: Switch between GPT (OpenAI), Claude (Anthropic), and Gemini (Google AI) tokenizers. 
 
-- **`Toggle Token Highlighting`**: Enable or disable visual token highlighting overlays. Also accessible by clicking the palette icon in the status bar.
+- **`Toggle Token Highlighting`**: Enable or disable visual token highlighting overlays. Also what a click on the status bar item does.
 
 - **`Configure Token Highlight Colors`**: Open an interactive color configurator to customize the highlight colors for even and odd token bands. Includes live preview and smart text contrast.
 
